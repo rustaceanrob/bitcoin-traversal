@@ -3,6 +3,7 @@ use kernel::{ChainType, ChainstateManager, ContextBuilder, core::TransactionExt}
 const CHAIN: ChainType = ChainType::Mainnet;
 const DATA_DIR: &str = "/data";
 const BLOCKS_DIR: &str = "/data/blocks/";
+const PRECISION: i64 = 10;
 
 fn compute_avg(block_ouputs: &[i64]) -> i64 {
     block_ouputs.iter().sum::<i64>() / block_ouputs.len() as i64
@@ -32,10 +33,12 @@ fn main() {
     }
     let max_outputs_in_blk = outputs_per_block.iter().max().unwrap();
     let avg_outputs_per_blk = compute_avg(&outputs_per_block);
+    let sum_outputs_times_weight = PRECISION * outputs_per_block.iter().sum::<i64>();
     println!("=== Summary =============================");
-    println!("Chain height:        {tip_height}");
-    println!("Total inputs:        {total_inputs}");
-    println!("Total outputs:       {total_outputs}");
-    println!("Avg outputs per blk: {avg_outputs_per_blk}");
-    println!("Max outputs in blk:  {max_outputs_in_blk}");
+    println!("Chain height:         {tip_height}");
+    println!("Total inputs:         {total_inputs}");
+    println!("Total outputs:        {total_outputs}");
+    println!("Avg outputs per blk:  {avg_outputs_per_blk}");
+    println!("Max outputs in blk:   {max_outputs_in_blk}");
+    println!("Estimated radix trie: {sum_outputs_times_weight} bytes");
 }
