@@ -1,11 +1,5 @@
-# Quickstart for new Rust projects
+# Simple traversal of `bitcoind` data
 
-Useful `just` commands:
-
-`just run`: run the binary in release mode
-
-`just test`: run the unit tests, doc tests (will fail if there is no library)
-
-`just delete`: delete local git branches that have been merged to master
+Collection of simple metrics like input and output count on a local `bitcoind` database.
 
 
