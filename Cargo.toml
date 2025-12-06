@@ -1,9 +1,10 @@
 [package]
-name = "rust-template-repo"
+name = "bitcoin-traversal"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+kernel = { package = "bitcoinkernel", version = "0.1.1" }
 
 [profile.release]
 opt-level = 3
