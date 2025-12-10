@@ -6,6 +6,10 @@ edition = "2024"
 [dependencies]
 kernel = { package = "bitcoinkernel", version = "0.1.1" }
 
+[[bin]]
+name = "stats"
+path = "src/stats.rs"
+
 [profile.release]
 opt-level = 3
 lto = true
