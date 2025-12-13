@@ -1,18 +1,20 @@
 [package]
-name = "bitcoin-traversal"
+name = "btraversal"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bitcoin = { version = "0.32", default-features = false }
 kernel = { package = "bitcoinkernel", version = "0.1.1" }
+sql = { package = "rusqlite", version = "0.37.0", features = ["bundled"] }
 
 [[bin]]
 name = "stats"
 path = "src/stats.rs"
 
 [[bin]]
-name = "fastcache"
-path = "src/cache_hints.rs"
+name = "ttl"
+path = "src/ttl.rs"
 
 [profile.release]
 opt-level = 3

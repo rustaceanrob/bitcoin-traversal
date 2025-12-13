@@ -1,8 +1,8 @@
 use kernel::{ChainType, ChainstateManager, ContextBuilder, core::TransactionExt};
 
 const CHAIN: ChainType = ChainType::Mainnet;
-const DATA_DIR: &str = "/data";
-const BLOCKS_DIR: &str = "/data/blocks/";
+const DATA_DIR: &str = "/data1";
+const BLOCKS_DIR: &str = "/data1/blocks/";
 
 fn compute_avg(block_ouputs: &[i64]) -> i64 {
     block_ouputs.iter().sum::<i64>() / block_ouputs.len() as i64
