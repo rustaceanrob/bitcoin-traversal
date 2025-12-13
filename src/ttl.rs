@@ -1,4 +1,7 @@
-use std::path::Path;
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use bitcoin::ScriptBuf;
 use btraversal::{ScriptBufExt, ScriptType};
@@ -6,6 +9,7 @@ use kernel::{
     ChainType, ChainstateManager, ContextBuilder,
     core::{ScriptPubkeyExt, TransactionExt, TxInExt, TxOutExt, TxOutPointExt, TxidExt},
 };
+use rayon::prelude::*;
 
 const CHAIN: ChainType = ChainType::Mainnet;
 const DATA_DIR: &str = "/data1";
@@ -45,7 +49,7 @@ fn open_database(path: impl AsRef<Path>) -> sql::Connection {
     conn
 }
 
-fn insert_output(conn: &mut sql::Connection, records: impl Iterator<Item = Record>) {
+fn insert_output<'a>(conn: &'a mut sql::Connection, records: impl Iterator<Item = &'a Record>) {
     let tx = conn.transaction().unwrap();
     let mut stmt = tx
         .prepare(
@@ -70,9 +74,9 @@ fn insert_output(conn: &mut sql::Connection, records: impl Iterator<Item = Recor
     tx.commit().unwrap();
 }
 
-fn update_spend_height(
-    conn: &mut sql::Connection,
-    outpoints: impl Iterator<Item = ([u8; 32], u32)>,
+fn update_spend_height<'a>(
+    conn: &'a mut sql::Connection,
+    outpoints: impl Iterator<Item = &'a ([u8; 32], u32)>,
     spend_height: u32,
 ) {
     let tx = conn.transaction().unwrap();
@@ -119,35 +123,45 @@ fn main() {
             );
         }
         let block = chainman.read_block_data(&entry).unwrap();
-        let mut output_records = Vec::new();
-        let mut inputs_records = Vec::new();
-        for tx in block.transactions().skip(1) {
-            let txid = tx.txid().to_bytes();
-            for (vout, output) in tx.outputs().enumerate() {
-                let amount = output.value();
-                let script = ScriptBuf::from_bytes(output.script_pubkey().to_bytes());
-                #[allow(deprecated)]
-                if script.is_provably_unspendable() {
-                    continue;
+        let output_records = Arc::new(Mutex::new(Vec::new()));
+        let input_records = Arc::new(Mutex::new(Vec::new()));
+        block
+            .transactions()
+            .par_bridge()
+            .map(|tx| {
+                let txid = tx.txid().to_bytes();
+                for (vout, output) in tx.outputs().enumerate() {
+                    let amount = output.value();
+                    let script = ScriptBuf::from_bytes(output.script_pubkey().to_bytes());
+                    #[allow(deprecated)]
+                    if script.is_provably_unspendable() {
+                        continue;
+                    }
+                    let record = Record {
+                        txid,
+                        vout: vout as u32,
+                        script_type: script.script_type(),
+                        amount,
+                        created_height: entry.height() as u32,
+                        spend_height: None,
+                    };
+                    let mut record_lock = output_records.lock().unwrap();
+                    record_lock.push(record);
                 }
-                let record = Record {
-                    txid,
-                    vout: vout as u32,
-                    script_type: script.script_type(),
-                    amount,
-                    created_height: entry.height() as u32,
-                    spend_height: None,
-                };
-                output_records.push(record);
-            }
-            for input in tx.inputs() {
-                let txid = input.outpoint().txid().to_bytes();
-                let vout = input.outpoint().index();
-                inputs_records.push((txid, vout));
-            }
-        }
-        insert_output(&mut conn, output_records.into_iter());
-        update_spend_height(&mut conn, inputs_records.into_iter(), entry.height() as u32);
+                for input in tx.inputs() {
+                    let txid = input.outpoint().txid().to_bytes();
+                    let vout = input.outpoint().index();
+                    let mut record_lock = input_records.lock().unwrap();
+                    record_lock.push((txid, vout));
+                }
+            })
+            .collect::<Vec<()>>();
+        insert_output(&mut conn, output_records.lock().unwrap().iter());
+        update_spend_height(
+            &mut conn,
+            input_records.lock().unwrap().iter(),
+            entry.height() as u32,
+        );
         let mut coinbase_outputs = Vec::new();
         let coinbase = block.transactions().next().unwrap();
         let txid = coinbase.txid().to_bytes();
@@ -168,7 +182,7 @@ fn main() {
             };
             coinbase_outputs.push(record);
         }
-        insert_output(&mut conn, coinbase_outputs.into_iter());
+        insert_output(&mut conn, coinbase_outputs.iter());
     }
     println!("Result written to {RESULTS}");
 }

@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bitcoin = { version = "0.32", default-features = false }
 kernel = { package = "bitcoinkernel", version = "0.1.1" }
+rayon = "1.11.0"
 sql = { package = "rusqlite", version = "0.37.0", features = ["bundled"] }
 
 [[bin]]
